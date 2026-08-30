@@ -13,8 +13,8 @@
 typedef struct
 {
     NodeID* queue;
-    uint32_t* visited;
-    uint32_t state;
+    uint16_t* visited;
+    uint16_t state;
 }
 BFSData;
 
@@ -130,6 +130,7 @@ static void initRecursionData(Graph* graph, Result* result)
     for (NodeID i = 0; i < numTiles; ++i)
         if (!IS_NODE_NULL(graph->nodes[i]) && TILE_IS_EMPTY(graph->nodes[i].type))
             recursionData.wallable[++recursionData.numWallable] = i;
+    ++recursionData.numWallable;
 
     // locate all end nodes
     recursionData.ends = locateEnds(graph);
@@ -159,7 +160,7 @@ static void initBFSData(Graph* graph)
 
     bfsData = (BFSData){ NULL, NULL, 0 };
     bfsData.queue = (NodeID*)malloc(sizeof(NodeID) * numTiles);
-    bfsData.visited = (uint32_t*)malloc(sizeof(uint32_t) * numTiles);
+    bfsData.visited = (uint16_t*)malloc(sizeof(uint16_t) * numTiles);
 
     for (uint16_t i = 0; i < numTiles; ++i)
         bfsData.visited[i] = 0;

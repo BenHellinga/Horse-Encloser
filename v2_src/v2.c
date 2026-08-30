@@ -2,14 +2,20 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "v1.h"
+#include "v2.h"
 
 
 
 /*
-    v1 strategy is to find all wallable tiles, then try every combination of walls on those tiles. At each step, check if the horse is enclosed and record the score.
-    This brute force strategy is very slow, requiring (num wallable tiles)^(num walls) steps to complete, however takes no shortcuts that may make false assumptions, and
-    therefore is easy to verify that it finds the optimal solution.
+    v2 strategy revolves around finding the shortest path of escape at each level of recursion, and iterating the wall along that
+    path instead of iterating every possible tile. Where v1 is (all wallable tiles)^(num walls), v2 reduces the base to (average shortest path length)^(num walls)
+
+    Note that special care has to be taken when it comes to negative tiles, as they are not required to be blocked, but may want to be blocked. Therefore the negative tiles
+    are considered end tiles, and the shortest path to them is blocked, until the path has been fully enumerated, where then the algorithm also considers if it was not blocked.
+
+    Enumerating this way no longer finds all possible enclosements, but narrows the search by cutting some obviously unoptimal ones.
+
+    The code for v2 got a little messy as I was trying to finish it quickly so I could progress to v3, as I knew v2 would not be fast enough for all puzzles.
 */
 
 
