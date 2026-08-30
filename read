@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# AI written
+
+# Usage: ./read <numwalls> <filename>
+# Reads the board off the screen (same as running the app with -w/-s) and
+# saves it to <filename>.
+
+set -euo pipefail
+
+if [ $# -ne 2 ]; then
+    echo "Usage: ./read <numwalls> <filename>" >&2
+    exit 1
+fi
+
+NUMWALLS="$1"
+FILENAME="$2"
+
+CSPROJ=$(ls ./*.csproj | head -n1)
+EXE="publish-win/$(basename "$CSPROJ" .csproj).exe"
+
+if [ ! -f "$EXE" ]; then
+    echo "Windows build not found at '$EXE' -- run 'make' first." >&2
+    exit 1
+fi
+
+"$EXE" -w "$NUMWALLS" -s boards/"$FILENAME"

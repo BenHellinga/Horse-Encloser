@@ -8,9 +8,72 @@ namespace HorseEncloser;
 
 
 
-[SupportedOSPlatform("windows")]
-public static class WebsiteIO
+public enum Tile
 {
+    Empty, Horse, Unicorn, Wall, Water, Bee, Cherry, Apple, BluePortal, PinkPortal, PurplePortal
+}
+
+
+
+public enum Gamemode
+{
+    Classic, Costly, Lovebirds, Quarrel
+}
+
+
+
+/*
+   Reads a board off the screen by template-matching each tile, then
+   saves it to a text file and prints it.
+*/
+
+
+
+[SupportedOSPlatform("windows")]
+public static class Program
+{
+    public static void Main(string[] args)
+    {
+        if (args.Length != 4 || args[0] != "-w" || args[2] != "-s")
+        {
+            Console.WriteLine("Usage: -w <numWalls> -s <filepath>");
+            return;
+        }
+ 
+        if (!int.TryParse(args[1], out int numWalls))
+        {
+            Console.WriteLine($"'-w' expects an integer, got '{args[1]}'.");
+            return;
+        }
+ 
+        WebsiteReader.ReadSaveAndPrint(numWalls, args[3]);
+    }
+}
+
+
+
+[SupportedOSPlatform("windows")]
+public static class WebsiteReader
+{
+    // tile <-> character mapping, used for saving and printing
+
+    private static readonly IReadOnlyDictionary<Tile, char> TileChars = new Dictionary<Tile, char>
+    {
+        { Tile.Empty,        ' ' },
+        { Tile.Horse,        'H' },
+        { Tile.Unicorn,      'U' },
+        { Tile.Wall,         '#' },
+        { Tile.Water,        '~' },
+        { Tile.Bee,          'B' },
+        { Tile.Cherry,       'C' },
+        { Tile.Apple,        'A' },
+        { Tile.BluePortal,   '1' },
+        { Tile.PinkPortal,   '2' },
+        { Tile.PurplePortal, '3' },
+    };
+
+
+
     // win32 interop
 
 
@@ -42,10 +105,19 @@ public static class WebsiteIO
 
 
 
-    private static readonly (byte R, byte G, byte B) GreenA = HexToRgb(0x1e8a48);
-    private static readonly (byte R, byte G, byte B) GreenB = HexToRgb(0x1b6b3a);
+    private static readonly HashSet<(byte R, byte G, byte B)> BackgroundColors =
+    [
+        HexToRgb(0x1b6b3a), // classic background green a
+        // HexToRgb(0x1e8a48), // classic background green b
+        HexToRgb(0x802213), // costly background red
+        HexToRgb(0x272727), // quarrel background gray a
+        // HexToRgb(0x424242), // quarrel background gray b
+        HexToRgb(0x9c78b1), // lovebirds background pink a
+        // HexToRgb(0xa580b9), // lovebirds background pink b
+    ];
 
-    private static (byte R, byte G, byte B) HexToRgb(int hex) => ((byte)((hex >> 16) & 0xFF), (byte)((hex >> 8) & 0xFF), (byte)(hex & 0xFF));
+    private static (byte R, byte G, byte B) HexToRgb(int hex) =>
+        ((byte)((hex >> 16) & 0xFF), (byte)((hex >> 8) & 0xFF), (byte)(hex & 0xFF));
 
 
 
@@ -58,6 +130,7 @@ public static class WebsiteIO
     private const double ColorThreshold = 0.05;
     private const double TemplateThreshold = 0.1;
     private const string TemplateFolder = "templates";
+    private const string DebugFolder = "debug";
 
 
 
@@ -65,7 +138,21 @@ public static class WebsiteIO
 
 
 
-    public static Board? ReadBoardFromScreen(int numWalls)
+    public static void ReadSaveAndPrint(int numWalls, string filepath)
+    {
+        (Tile[,]? tiles, Gamemode gamemode) = ReadBoardFromScreen();
+        if (tiles == null) return;
+
+        Save(tiles, gamemode, numWalls, filepath);
+        Print(tiles);
+        Console.WriteLine($"Gamemode: {gamemode}");
+        Console.WriteLine($"Walls: {numWalls}");
+        Console.WriteLine($"Width/Height: ({tiles.GetLength(0)}, {tiles.GetLength(1)})");
+    }
+
+
+
+    private static (Tile[,]? tiles, Gamemode gamemode) ReadBoardFromScreen()
     {
         SetProcessDPIAware();
 
@@ -75,7 +162,7 @@ public static class WebsiteIO
         if (!GetCursorPos(out POINT cursor))
         {
             Console.WriteLine("Could not read cursor position");
-            return null;
+            return (null, Gamemode.Classic);
         }
 
         (Bitmap screenBmp, int originX, int originY) = CaptureScreen();
@@ -84,57 +171,35 @@ public static class WebsiteIO
         int cursorX = cursor.X - originX;
         int cursorY = cursor.Y - originY;
 
+        // scan right from the cursor (on the green background) until we hit the board itself
         int xLeft = ScanRightUntilFirstNonGreen(screenFb, cursorX, cursorY, screenFb.Width);
-        if (xLeft < 0) return null;
+        if (xLeft < 0) return (null, Gamemode.Classic);
 
+        // scan up/down and then right to find the other three edges of the board
         (int yTop, int yBottom) = ScanUpAndDownUntilFirstGreen(screenFb, xLeft, cursorY);
         int xRight = ScanRightUntilFirstGreen(screenFb, xLeft, yTop);
 
-        // crop bitmap now that board is located
         int boardW = xRight - xLeft + 1;
         int boardH = yBottom - yTop + 1;
         using Bitmap boardBmp = screenBmp.Clone(new Rectangle(xLeft, yTop, boardW, boardH), PixelFormat.Format24bppRgb);
         using FastBitmap boardFb = new(boardBmp);
 
+        // scan diagonally from the top-left corner to find the border thickness,
+        // then scan the first inner tile to find the tile size
         int borderThickness = FindBorderThickness(boardFb);
-        if (borderThickness < 0) return null;
+        if (borderThickness < 0) return (null, Gamemode.Classic);
 
-        int tileSizeEstimate = FindTileSize(boardFb, borderThickness);
-
-
-        (int cols, int rows) = FindBoardDimensions(boardW, boardH, tileSizeEstimate, borderThickness);
+        int tileSize = FindTileSize(boardFb, borderThickness);
+        (int cols, int rows) = FindBoardDimensions(boardW, boardH, tileSize, borderThickness);
 
         double periodX = (boardW - borderThickness) / (double)cols;
         double periodY = (boardH - borderThickness) / (double)rows;
 
-        SaveDebugGridOverlay(boardBmp, cols, rows, borderThickness, periodX, periodY);
-
         List<Template> templates = LoadTemplates();
-        (Tile[,], Pos?, Dictionary<int, List<Pos>>)? result = ClassifyTiles(boardBmp, cols, rows, borderThickness, periodX, periodY, templates);
-        foreach (Template tmpl in templates) tmpl.Image.Dispose();
-        if (result == null) return null;
+        (Tile[,]? tiles, Gamemode gamemode) = ClassifyTiles(boardBmp, cols, rows, borderThickness, periodX, periodY, templates);
+        foreach (Template t in templates) t.Image.Dispose();
 
-        (Tile[,] tiles, Pos? start, Dictionary<int, List<Pos>> portalGroups) = result.Value;
-
-        if (start == null)
-        {
-            Console.WriteLine("No horse found");
-            return null;
-        }
-
-        Board board = new((cols, rows), (start.Value.X, start.Value.Y), numWalls);
-
-        for (int x = 0; x < cols; x++)
-            for (int y = 0; y < rows; y++)
-                board.Tiles[x, y] = tiles[x, y];
-
-        foreach ((int _, List<Pos> pos) in portalGroups)
-        {
-            board.PortalDestinations.Add(pos[0], pos[1]);
-            board.PortalDestinations.Add(pos[1], pos[0]);
-        }
-
-        return board;
+        return (tiles, gamemode);
     }
 
 
@@ -159,24 +224,6 @@ public static class WebsiteIO
 
 
 
-    private static void SaveDebugGridOverlay(Bitmap boardBmp, int cols, int rows, int borderThickness, double periodX, double periodY)
-    {
-        using FastBitmap overlayFb = new(boardBmp);
-
-        for (int x = 0; x < cols; x++)
-        {
-            for (int y = 0; y < rows; y++)
-            {
-                (int cellX0, int cellY0, _, _) = GetTileBoundsPx(x, y, borderThickness, periodX, periodY);
-                overlayFb.SetPixelWhite(cellX0, cellY0);
-            }
-        }
-
-        overlayFb.Save("debug/board.png");
-    }
-
-
-
     // scanning
 
 
@@ -191,8 +238,8 @@ public static class WebsiteIO
 
 
 
-    private static bool IsGreenish((byte R, byte G, byte B) c) =>
-        ColorDistance(c, GreenA) <= ColorThreshold || ColorDistance(c, GreenB) <= ColorThreshold;
+    private static bool IsBackground((byte R, byte G, byte B) c) =>
+        BackgroundColors.Any(bg => ColorDistance(c, bg) <= ColorThreshold);
 
 
 
@@ -205,7 +252,7 @@ public static class WebsiteIO
         }
 
         for (int x = startX; x < maxX; ++x)
-            if (!IsGreenish(fb.GetPixel(x, y)))
+            if (!IsBackground(fb.GetPixel(x, y)))
                 return x;
 
         Console.WriteLine("Right scan failed");
@@ -217,10 +264,10 @@ public static class WebsiteIO
     private static (int top, int bottom) ScanUpAndDownUntilFirstGreen(FastBitmap fb, int x, int startY)
     {
         int top = startY;
-        while (top - 1 >= 0 && !IsGreenish(fb.GetPixel(x, top - 1))) --top;
+        while (top - 1 >= 0 && !IsBackground(fb.GetPixel(x, top - 1))) --top;
 
         int bottom = startY;
-        while (bottom + 1 < fb.Height && !IsGreenish(fb.GetPixel(x, bottom + 1))) ++bottom;
+        while (bottom + 1 < fb.Height && !IsBackground(fb.GetPixel(x, bottom + 1))) ++bottom;
 
         return (top, bottom);
     }
@@ -230,7 +277,7 @@ public static class WebsiteIO
     private static int ScanRightUntilFirstGreen(FastBitmap fb, int startX, int y)
     {
         int x = startX;
-        while (x + 1 < fb.Width && !IsGreenish(fb.GetPixel(x + 1, y))) ++x;
+        while (x + 1 < fb.Width && !IsBackground(fb.GetPixel(x + 1, y))) ++x;
 
         return x;
     }
@@ -245,7 +292,7 @@ public static class WebsiteIO
     {
         int t = 0;
         int maxT = Math.Min(boardFb.Width, boardFb.Height) - 1;
-        while (t < maxT && !IsGreenish(boardFb.GetPixel(t, t))) ++t;
+        while (t < maxT && !IsBackground(boardFb.GetPixel(t, t))) ++t;
 
         if (t >= maxT)
         {
@@ -261,7 +308,7 @@ public static class WebsiteIO
     private static int FindTileSize(FastBitmap boardFb, int borderThickness)
     {
         int x = borderThickness;
-        while (x + 1 < boardFb.Width && IsGreenish(boardFb.GetPixel(x + 1, borderThickness))) ++x;
+        while (x + 1 < boardFb.Width && IsBackground(boardFb.GetPixel(x + 1, borderThickness))) ++x;
 
         return x - borderThickness + 1;
     }
@@ -279,22 +326,17 @@ public static class WebsiteIO
 
 
 
-    private static (int x, int y, int w, int h) GetTileBoundsPx(int gx, int gy, int borderThickness, double periodX, double periodY)
+    // returns the pixel bounds of the inner (padded) region of tile (gx, gy),
+    // i.e. the part of the tile we actually screenshot and compare to templates
+    private static (int x0, int y0, int w, int h) GetPaddedTileBoundsPx(int gx, int gy, int borderThickness, double periodX, double periodY)
     {
         int x0 = (int)Math.Round(borderThickness + gx * periodX);
         int y0 = (int)Math.Round(borderThickness + gy * periodY);
         int x1 = (int)Math.Round(borderThickness + (gx + 1) * periodX);
         int y1 = (int)Math.Round(borderThickness + (gy + 1) * periodY);
 
-        return (x0, y0, x1 - x0, y1 - y0);
-    }
-
-
-
-    private static (int x0, int y0, int w, int h) GetPaddedTileBoundsPx(int gx, int gy, int borderThickness, double periodX, double periodY)
-    {
-        (int x0, int y0, int w, int h) = GetTileBoundsPx(gx, gy, borderThickness, periodX, periodY);
-
+        int w = x1 - x0;
+        int h = y1 - y0;
         int padX = (int)Math.Round(w * TemplatePadding / 2.0);
         int padY = (int)Math.Round(h * TemplatePadding / 2.0);
 
@@ -319,14 +361,6 @@ public static class WebsiteIO
 
 
 
-    private static FastBitmap PrepareForComparison(Bitmap tileCrop)
-    {
-        using Bitmap resized = ResizeTo(tileCrop, TemplateSize, TemplateSize);
-        return new FastBitmap(resized);
-    }
-
-
-
     private static Bitmap ResizeTo(Bitmap src, int w, int h)
     {
         Bitmap dst = new(w, h, PixelFormat.Format24bppRgb);
@@ -339,37 +373,18 @@ public static class WebsiteIO
 
 
 
-    // debug output
-
-
-
-    private static int GetNextDebugIndex()
-    {
-        if (!Directory.Exists("debug")) return 0;
-
-        int max = -1;
-        foreach (string file in Directory.GetFiles("debug", "*.png"))
-        {
-            string name = Path.GetFileNameWithoutExtension(file);
-            if (int.TryParse(name, out int n) && n > max)
-                max = n;
-        }
-
-        return max + 1;
-    }
-
-
-
     // templates + classification
 
 
 
+    // Gamemode is null for templates shared across gamemodes (e.g. "empty_0"),
+    // and set for templates specific to one gamemode (e.g. "empty_costly_0")
     private sealed class Template
     {
         public required Tile Tile;
+        public required Gamemode? Gamemode;
         public required string Name;
         public required FastBitmap Image;
-        public int? PortalGroup; // set when Tile == Tile.Portal; identifies which of the 3 color pairs this template represents
     }
 
 
@@ -383,29 +398,36 @@ public static class WebsiteIO
             string ext = Path.GetExtension(file).ToLowerInvariant();
             if (ext is not (".png" or ".bmp" or ".jpg" or ".jpeg")) continue;
 
+            // filenames look like "{tile}_{n}.png" (shared across gamemodes) or
+            // "{tile}_{gamemode}_{n}.png" (specific to one gamemode), e.g.
+            // "Wall1.png", "Empty_0.png", "Empty_Costly_0.png"
             string name = Path.GetFileNameWithoutExtension(file);
-            string rawPrefix = name.Split('_', '-', ' ')[0];
-            string prefix = rawPrefix.TrimEnd("0123456789".ToCharArray());
+            string[] tokens = name.Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries);
+
+            string prefix = tokens[0];
 
             if (!Enum.TryParse(prefix, ignoreCase: true, out Tile tile))
             {
-                Console.WriteLine($"Warning: couldn't parse a Tile type from '{name}', skipping.");
+                Console.WriteLine($"Warning: Couldn't parse a Tile type from '{name}', skipping.");
                 continue;
             }
 
-            int? portalGroup = null;
-            if (tile == Tile.Portal)
+            Gamemode? gamemode = null;
+
+            if (tokens.Length >= 3)
             {
-                string digits = rawPrefix[prefix.Length..];
-                if (int.TryParse(digits, out int group))
-                    portalGroup = group;
-                else
-                    Console.WriteLine($"Warning: portal template '{name}' has no group number, it won't be linkable.");
+                if (!Enum.TryParse(tokens[1], ignoreCase: true, out Gamemode parsedGamemode))
+                {
+                    Console.WriteLine($"Warning: Couldn't parse a Gamemode from '{name}', skipping.");
+                    continue;
+                }
+
+                gamemode = parsedGamemode;
             }
 
             using Bitmap raw = new(file);
             using Bitmap resized = ResizeTo(raw, TemplateSize, TemplateSize);
-            list.Add(new Template { Tile = tile, Name = name, Image = new FastBitmap(resized), PortalGroup = portalGroup });
+            list.Add(new Template { Tile = tile, Gamemode = gamemode, Name = name, Image = new FastBitmap(resized) });
         }
 
         return list;
@@ -413,16 +435,13 @@ public static class WebsiteIO
 
 
 
-    private static (Tile[,] tiles, Pos start, Dictionary<int, List<Pos>> portalGroups) ClassifyTiles(
+    private static (Tile[,]? tiles, Gamemode gamemode) ClassifyTiles(
         Bitmap boardBmp, int cols, int rows, int borderThickness, double periodX, double periodY,
         List<Template> templates)
     {
         Tile[,] tiles = new Tile[cols, rows];
-        Pos start = new(-1, -1);
-        Dictionary<int, List<Pos>> portalGroups = new();
-
-        int debugCounter = GetNextDebugIndex();
         bool anyUnrecognized = false;
+        Gamemode? detectedGamemode = null;
 
         for (int gx = 0; gx < cols; gx++)
         {
@@ -431,42 +450,43 @@ public static class WebsiteIO
                 (int cellX0, int cellY0, int cellW, int cellH) = GetPaddedTileBoundsPx(gx, gy, borderThickness, periodX, periodY);
 
                 using Bitmap tileCrop = ExtractTileCrop(boardBmp, cellX0, cellY0, cellW, cellH);
-                using FastBitmap tileFb = PrepareForComparison(tileCrop);
+                using Bitmap resized = ResizeTo(tileCrop, TemplateSize, TemplateSize);
+                using FastBitmap tileFb = new(resized);
 
                 (Template? best, double score) = ClassifyTile(tileFb, templates);
 
                 if (best is null || score > TemplateThreshold)
                 {
-                    string debugPath = $"debug/{debugCounter++}.png";
-                    tileFb.Save(debugPath);
-                    Console.WriteLine($"  Warning: no confident match at cell ({gx},{gy}) (closest {best?.Tile} @ {score:F3}) -- saved to {debugPath}");
+                    Console.WriteLine($"Warning: no confident match at cell ({gx},{gy}) (closest {best?.Tile} @ {score:F3})");
+                    SaveDebugTile(resized);
                     anyUnrecognized = true;
                     continue;
                 }
 
-                int boardX = gx;
-                int boardY = rows - 1 - gy; // screen top row -> highest board Y (matches Board.Print)
-                Pos pos = new(boardX, boardY);
-
-                tiles[boardX, boardY] = best.Tile;
-
-                if (best.Tile == Tile.Horse)
-                    start = pos;
-
-                if (best.PortalGroup is int group)
+                // a template specific to one gamemode identifies the board's gamemode;
+                // shared templates (Gamemode == null) don't tell us anything
+                if (best.Gamemode.HasValue)
                 {
-                    if (!portalGroups.TryGetValue(group, out List<Pos>? positions))
-                        portalGroups[group] = positions = [];
-                    positions.Add(pos);
+                    if (detectedGamemode is null)
+                        detectedGamemode = best.Gamemode.Value;
+                    else if (detectedGamemode.Value != best.Gamemode.Value)
+                        Console.WriteLine($"Warning: cell ({gx},{gy}) matched '{best.Name}' ({best.Gamemode}), conflicting with already-detected gamemode {detectedGamemode}.");
                 }
+
+                int boardX = gx;
+                int boardY = rows - 1 - gy; // screen top row -> highest board Y (matches Print/Save)
+                tiles[boardX, boardY] = best.Tile;
             }
         }
 
         if (anyUnrecognized)
-            throw new InvalidOperationException(
-                "One or more tiles could not be classified with confidence. Check debug/ for saved strips and add matching templates.");
+        {
+            Console.WriteLine("Error: One or more tiles could not be classified with confidence.");
+            return (null, Gamemode.Classic);
+        }
 
-        return (tiles, start, portalGroups);
+        // no gamemode-specific tile was ever matched, so the board is classic
+        return (tiles, detectedGamemode ?? Gamemode.Classic);
     }
 
 
@@ -502,7 +522,101 @@ public static class WebsiteIO
 
         return totalDistance / total;
     }
+
+
+
+    // debug output
+
+
+
+    // lazily initialized on first use; -1 means "not yet scanned"
+    private static int _debugTileCounter = -1;
+
+    private static void SaveDebugTile(Bitmap tileBmp)
+    {
+        // works whether or not the debug folder already exists
+        Directory.CreateDirectory(DebugFolder);
+
+        if (_debugTileCounter < 0)
+        {
+            _debugTileCounter = 0;
+            foreach (string f in Directory.GetFiles(DebugFolder, "*.png"))
+            {
+                if (int.TryParse(Path.GetFileNameWithoutExtension(f), out int n) && n >= _debugTileCounter)
+                    _debugTileCounter = n + 1;
+            }
+        }
+
+        tileBmp.Save(Path.Combine(DebugFolder, $"{_debugTileCounter}.png"), ImageFormat.Png);
+        _debugTileCounter++;
+    }
+
+
+
+    // printing
+
+
+
+    private static void Print(Tile[,] tiles)
+    {
+        int width = tiles.GetLength(0);
+        int height = tiles.GetLength(1);
+
+        Console.WriteLine($"+{new string('-', width * 2 + 1)}+");
+
+        for (int y = height - 1; y >= 0; --y)
+        {
+            Console.Write("| ");
+
+            for (int x = 0; x < width; ++x)
+                Console.Write($"{TileChars[tiles[x, y]]} ");
+
+            Console.Write("|\n");
+        }
+
+        Console.WriteLine($"+{new string('-', width * 2 + 1)}+");
+    }
+
+
+
+    // saving
+
+
+
+    private static void Save(Tile[,] tiles, Gamemode gamemode, int numWalls, string filepath)
+    {
+        int width = tiles.GetLength(0);
+        int height = tiles.GetLength(1);
+
+        List<string> lines =
+        [
+            gamemode.ToString().ToLowerInvariant(),
+            $"{numWalls}, {width}, {height}",
+        ];
+
+        // same row order as Print(): top of the board (highest Y) first.
+        // no separate portal-link section is needed: each portal color
+        // appears on exactly two tiles, so the color alone identifies the pair.
+        for (int y = height - 1; y >= 0; --y)
+        {
+            char[] row = new char[width];
+            for (int x = 0; x < width; ++x)
+                row[x] = TileChars[tiles[x, y]];
+
+            lines.Add(new string(row));
+        }
+
+        string? dir = Path.GetDirectoryName(filepath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        File.WriteAllLines(filepath, lines);
+    }
 }
+
+
+
+// minimal locked-bitmap wrapper for fast pixel reads
 
 
 
@@ -534,53 +648,10 @@ internal sealed class FastBitmap : IDisposable
 
 
 
-    public void Save(string filename)
-    {
-        using Bitmap bmp = new(Width, Height, PixelFormat.Format24bppRgb);
-        BitmapData data = bmp.LockBits(
-            new Rectangle(0, 0, Width, Height),
-            ImageLockMode.WriteOnly,
-            PixelFormat.Format24bppRgb);
-
-        // our internal stride may differ from the new bitmap's stride, so copy row by row
-        for (int y = 0; y < Height; y++)
-        {
-            Marshal.Copy(_buffer, y * _stride, data.Scan0 + y * data.Stride, _stride);
-        }
-
-        bmp.UnlockBits(data);
-
-        ImageFormat format = Path.GetExtension(filename).ToLowerInvariant() switch
-        {
-            ".jpg" or ".jpeg" => ImageFormat.Jpeg,
-            ".bmp" => ImageFormat.Bmp,
-            ".gif" => ImageFormat.Gif,
-            _ => ImageFormat.Png,
-        };
-
-        string? dir = Path.GetDirectoryName(filename);
-        if (!string.IsNullOrEmpty(dir))
-            Directory.CreateDirectory(dir);
-
-        bmp.Save(filename, format);
-    }
-
-
-
     public (byte R, byte G, byte B) GetPixel(int x, int y)
     {
         int idx = y * _stride + x * 3;
         return (_buffer[idx + 2], _buffer[idx + 1], _buffer[idx]);
-    }
-
-
-
-    public void SetPixelWhite(int x, int y)
-    {
-        int idx = y * _stride + x * 3;
-        _buffer[idx + 2] = 0xff;
-        _buffer[idx + 1] = 0xff;
-        _buffer[idx + 0] = 0xff;
     }
 
 

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# AI written
+
+# Usage: ./solve <filename> [-vN]
+# Dispatches to ./vN <filename>, e.g. -v1 runs ./v1 <filename>, -v2 runs ./v2 <filename>, etc.
+# If -vN is omitted, defaults to -v1.
+
+set -euo pipefail
+
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "Usage: ./solve <filename> [-vN]" >&2
+    exit 1
+fi
+
+FILENAME="$1"
+VERSION_FLAG="${2:--v1}"
+
+if [[ ! "$VERSION_FLAG" =~ ^-v([0-9]+)$ ]]; then
+    echo "Second argument must look like -v1, -v2, etc. (got '$VERSION_FLAG')" >&2
+    exit 1
+fi
+
+N="${BASH_REMATCH[1]}"
+SOLVER="./v${N}_src/v${N}"
+
+if [ ! -e "$SOLVER" ]; then
+    echo "Solver '$SOLVER' does not exist." >&2
+    exit 1
+fi
+
+if [ ! -x "$SOLVER" ]; then
+    echo "Solver '$SOLVER' exists but isn't executable — run: chmod +x $SOLVER" >&2
+    exit 1
+fi
+
+"$SOLVER" boards/"$FILENAME"
