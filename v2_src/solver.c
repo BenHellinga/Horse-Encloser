@@ -79,6 +79,7 @@ static void freeBFSData();
 static uint8_t* locateEndTiles(Graph* graph);
 static ValidatorFunction pickValidator(GamemodeType gamemode);
 
+static void removeBadLocations();
 static void recurse(uint8_t depth);
 static void recordIfBest(int16_t score, uint8_t numWalls);
 
@@ -103,7 +104,8 @@ void solve(Graph* graph, Result* result)
     initRecursionData(graph, result);
     initBFSData(graph);
 
-    // recursively brute force all wall combinations
+    removeBadLocations();
+
     recurse(0);
 
     freeRecursionData();
@@ -225,6 +227,48 @@ static ValidatorFunction pickValidator(GamemodeType gamemode)
         case GAMEMODE_QUARREL:   return validateQuarrel;
         default:                 return validateClassic;
     }
+}
+
+
+
+// graph simplification
+
+
+
+static void removeBadLocations()
+{
+    NodeID numTiles = recursionData.numTiles;
+    Graph* graph = recursionData.graph;
+    Node* nodes = graph->nodes;
+
+    NodeID i = -1;
+    NodeID* changed = (NodeID*)calloc(numTiles, sizeof(NodeID));
+
+    for (NodeID n = 0; n < numTiles; ++n)
+    {
+        Node* node = &nodes[n];
+
+        if (node->id == NULL_NODE_ID) continue;
+        if (recursionData.endTiles[n] == 1) continue;
+        if (node->type != TILE_EMPTY) continue;
+
+        uint8_t numEdges = node->numEdges;
+        NodeID* edges = node->edges;
+
+        uint8_t e = 0;
+        for (; e < numEdges; ++e)
+            if (!TILE_IS_EMPTY(nodes[edges[e]].type))
+                break;
+
+        if (e == numEdges && numEdges <= 2)
+            changed[++i] = n;
+    }
+    ++i;
+
+    for (NodeID j = 0; j < i; ++j)
+        nodes[changed[j]].type = TILE_BAD;
+
+    free(changed);
 }
 
 

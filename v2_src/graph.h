@@ -32,6 +32,7 @@ enum
     TILE_BLUE_PORTAL,
     TILE_PINK_PORTAL,
     TILE_PURPLE_PORTAL,
+    TILE_BAD,
 
     NUM_TILE_TYPES
 };
@@ -59,6 +60,7 @@ enum
 #define TILE_CHAR_BLUE_PORTAL   '1'
 #define TILE_CHAR_PINK_PORTAL   '2'
 #define TILE_CHAR_PURPLE_PORTAL '3'
+#define TILE_CHAR_BAD           ' '
 
 
 
@@ -79,6 +81,7 @@ enum
     [TILE_BLUE_PORTAL]   = TILE_CHAR_BLUE_PORTAL,   \
     [TILE_PINK_PORTAL]   = TILE_CHAR_PINK_PORTAL,   \
     [TILE_PURPLE_PORTAL] = TILE_CHAR_PURPLE_PORTAL, \
+    [TILE_BAD]           = TILE_CHAR_BAD,           \
 }
 extern const char TILE_CHARS[NUM_TILE_TYPES];
 
@@ -97,6 +100,7 @@ extern const char TILE_CHARS[NUM_TILE_TYPES];
     [TILE_BLUE_PORTAL]   = 1,   \
     [TILE_PINK_PORTAL]   = 1,   \
     [TILE_PURPLE_PORTAL] = 1,   \
+    [TILE_BAD]           = 1,   \
 }
 extern const int8_t TILE_POINTS[NUM_TILE_TYPES];
 

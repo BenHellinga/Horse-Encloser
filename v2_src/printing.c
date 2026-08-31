@@ -66,8 +66,7 @@ void print2D(uint8_t width, uint8_t height, void** grid, ObjectToCharFunction to
 // prints the tile's own character, blank if the pointer is null
 char nodeToChar(const void* object)
 {
-    if (object == NULL)
-        return ' ';
+    if (object == NULL) return ' ';
 
     const Node* node = (const Node*)object;
 
