@@ -590,6 +590,7 @@ public static class WebsiteReader
 
         List<string> lines =
         [
+            "1",
             gamemode.ToString().ToLowerInvariant(),
             $"{numWalls}, {width}, {height}",
         ];
