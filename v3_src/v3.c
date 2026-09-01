@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "solver.h"
+#include "printing.h"
+
 #include "v3.h"
 
 
@@ -25,12 +28,23 @@ int main(int argc, char** argv)
     }
     char* filepath = argv[1];
 
-    Board* board;
-    ReturnCode ret = boardFromFile(filepath, &board);
-    if (ret == ERROR) return 1;
+    printf("Parsing Board\n");
 
+    Board* board;
+    int ret = boardFromFile(filepath, &board);
+    if (ret == -1) return 1;
+
+    printf("Board Parsed\n\n");
     printBoard(board);
+    printf("\nStarting Solve\n");
+
+    Result* result = solve(board);
+
+    printf("Cleaning Up\n");
 
     freeBoard(board);
+    freeResult(result);
+
+    printf("Finished\n");
     return 0;
 }

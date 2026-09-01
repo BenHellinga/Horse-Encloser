@@ -96,7 +96,7 @@ ReturnCode parseGraph(const char* filepath, Graph* graph)
 
 
 
-// reads the gamemode, header, and tile grid from filepath into a freshly allocated board buffer
+// reads the file version, gamemode, header, and tile grid from filepath into a freshly allocated board buffer
 static ReturnCode readBoard(const char* filepath, ParsingInfo* info)
 {
     FILE* file = fopen(filepath, "r");
@@ -106,6 +106,26 @@ static ReturnCode readBoard(const char* filepath, ParsingInfo* info)
         fprintf(stderr, "could not open '%s'\n", filepath);
         return ERROR;
     }
+
+    int version;
+
+    if (fscanf(file, "%d", &version) != 1)
+    {
+        fprintf(stderr, "could not read version from '%s'\n", filepath);
+        fclose(file);
+        return ERROR;
+    }
+
+    if (version != 1)
+    {
+        fprintf(stderr, "unsupported version '%d' in '%s'\n", version, filepath);
+        fclose(file);
+        return ERROR;
+    }
+
+    // skip to the next line before reading the gamemode
+    char c;
+    while ((c = fgetc(file)) != '\n' && c != EOF);
 
     char gamemodeStr[GAMEMODE_STRING_BUFFER_SIZE];
 
@@ -123,13 +143,22 @@ static ReturnCode readBoard(const char* filepath, ParsingInfo* info)
         return ERROR;
     }
 
-    // skip to the next line before reading the header
-    char c;
+    // skip to the next line before reading numWalls
     while ((c = fgetc(file)) != '\n' && c != EOF);
 
-    if (fscanf(file, "%d,%d,%d", &info->numWalls, &info->width, &info->height) != 3)
+    if (fscanf(file, "%d", &info->numWalls) != 1)
     {
-        fprintf(stderr, "could not read board header from '%s'\n", filepath);
+        fprintf(stderr, "could not read numWalls from '%s'\n", filepath);
+        fclose(file);
+        return ERROR;
+    }
+
+    // skip to the next line before reading the width and height
+    while ((c = fgetc(file)) != '\n' && c != EOF);
+
+    if (fscanf(file, "%d,%d", &info->width, &info->height) != 2)
+    {
+        fprintf(stderr, "could not read board dimensions from '%s'\n", filepath);
         fclose(file);
         return ERROR;
     }

@@ -592,7 +592,8 @@ public static class WebsiteReader
         [
             "1",
             gamemode.ToString().ToLowerInvariant(),
-            $"{numWalls}, {width}, {height}",
+            $"{numWalls}",
+            $"{width}, {height}",
         ];
 
         // same row order as Print(): top of the board (highest Y) first.

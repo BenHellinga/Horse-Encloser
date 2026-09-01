@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "return.h"
-
 
 
 // defines
@@ -33,8 +31,8 @@ enum
 };
 
 #define NUM_PORTAL_PAIRS 5
-
-
+#define TILE_IS_PORTAL(tile) ((tile) - TILE_BLUE_PORTAL >= 0 && (tile) - TILE_BLUE_PORTAL < NUM_PORTAL_PAIRS)
+#define PORTAL_PAIR(tile) ((tile) - TILE_BLUE_PORTAL)
 
 typedef struct
 {
@@ -61,9 +59,11 @@ TileInfo;
     [TILE_MAGENTA_PORTAL] = { '4',     1,      true,      false }, \
     [TILE_RED_PORTAL]     = { '5',     1,      true,      false }, \
 }
-extern TileInfo TILE_INFO[NUM_TILE_TYPES];
+extern const TileInfo TILE_INFO[NUM_TILE_TYPES];
 
 
+
+#define GAMEMODE_STRING_BUFFER_SIZE 16
 
 typedef uint8_t Gamemode;
 enum
@@ -76,10 +76,6 @@ enum
     NUM_GAMEMODES
 };
 
-
-
-#define GAMEMODE_STRING_BUFFER_SIZE 16
-
 typedef struct
 {
     char string[GAMEMODE_STRING_BUFFER_SIZE];
@@ -88,14 +84,14 @@ typedef struct
 }
 GamemodeInfo;
 
-#define DEFINED_GAMEMODE_INFO       \
+#define DEFINED_GAMEMODE_INFO                                 \
 {                         /*      string   horse   unicorn */ \
     [GAMEMODE_CLASSIC]   = {   "classic",   true,    false }, \
     [GAMEMODE_COSTLY]    = {    "costly",   true,    false }, \
     [GAMEMODE_QUARREL]   = {   "quarrel",   true,     true }, \
     [GAMEMODE_LOVEBIRDS] = { "lovebirds",   true,     true }, \
 }
-extern GamemodeInfo GAMEMODE_INFO[NUM_GAMEMODES];
+extern const GamemodeInfo GAMEMODE_INFO[NUM_GAMEMODES];
 
 
 
@@ -105,6 +101,7 @@ typedef struct
     uint8_t numWalls;
     uint8_t width;
     uint8_t height;
+    uint16_t numTiles;
     TileType* tiles;
 }
 Board;
@@ -115,11 +112,8 @@ Board;
 
 
 
-Board* newBoard(Gamemode gamemode, uint8_t width, uint8_t height);
+int boardFromFile(char* filepath, Board** board);
 void freeBoard(Board* board);
-ReturnCode boardFromFile(char* filepath, Board** board);
-
-void printBoard(Board* board);
 
 
 
