@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "bfs.h"
 
@@ -14,7 +15,7 @@
 
 
 static BFSState getNextBFSState(BFSData* bfsData);
-static void recoverBFSPath(NodeID* restrict paths, NodeID endID, NodeID* restrict path, NodeCount* restrict pathLength);
+static void recoverBFSPath(NodeID* restrict paths, NodeID endID, NodeCount numNodes, NodeID* restrict path, NodeCount* restrict pathLength);
 
 
 
@@ -29,7 +30,7 @@ BFSData* initBFSData(NodeCount numNodes)
     bfsData->state = 0;
     bfsData->numNodes = numNodes;
     bfsData->visited = (BFSState*)calloc(numNodes, sizeof(BFSState));
-    bfsData->queue = (NodeID*)calloc(numNodes + 1, sizeof(NodeID)); // first index is wasted
+    bfsData->queue = (NodeID*)calloc(numNodes, sizeof(NodeID));
     bfsData->paths = (NodeID*)calloc(numNodes, sizeof(NodeID));
 
     return bfsData;
@@ -53,8 +54,10 @@ BFSArgs* initBFSArgs(Graph* graph)
 
     bfsArgs->graph = graph;
     bfsArgs->numStarts = 0;
-    bfsArgs->starts = (NodeID*)calloc(graph->numNodes, sizeof(NodeID));
-    bfsArgs->ends = (EndType*)calloc(graph->numNodes, sizeof(EndType));
+    bfsArgs->startList = NULL;
+    bfsArgs->endMask = NULL;
+    bfsArgs->stopEarly = true;
+    bfsArgs->includeEnds = true;
 
     return bfsArgs;
 }
@@ -63,8 +66,6 @@ BFSArgs* initBFSArgs(Graph* graph)
 
 void freeBFSArgs(BFSArgs* bfsArgs)
 {
-    free(bfsArgs->starts);
-    free(bfsArgs->ends);
     free(bfsArgs);
 }
 
@@ -102,8 +103,8 @@ void BFS(BFSData* restrict bfsData, BFSArgs* restrict bfsArgs, BFSResult* restri
     // cache everything for hot loop
     Graph* restrict graph = bfsArgs->graph;
     Node* restrict nodes = graph->nodes;
-    NodeID* restrict starts = bfsArgs->starts;
-    EndType* restrict ends = bfsArgs->ends;
+    NodeID* restrict startList = bfsArgs->startList;
+    EndType* restrict endMask = bfsArgs->endMask;
 
     BFSState* restrict visited = bfsData->visited;
     NodeID* restrict queue = bfsData->queue;
@@ -111,64 +112,84 @@ void BFS(BFSData* restrict bfsData, BFSArgs* restrict bfsArgs, BFSResult* restri
 
     // invalidate old data
     BFSState state = getNextBFSState(bfsData);
+    bool stopEarly = bfsArgs->stopEarly;
+    bool excludeEnds = !bfsArgs->includeEnds;
 
     NodeCount head = 0;
     NodeCount tail = 0;
 
-    // add starts to visited/queue/paths
+    // add startList to visited/queue/paths
     NodeCount numStarts = bfsArgs->numStarts;
-    for (NodeCount i = 0; i < numStarts; ++i)
+    for (NodeCount i = 0; i < numStarts; i++)
     {
-        NodeID start = starts[i];
+        NodeID start = startList[i];
 
         visited[start] = state;
-        queue[++tail] = start;
+        queue[tail++] = start;
         paths[start] = NULL_ID;
     }
 
-    int16_t score = 0;
+    ScoreValue score = 0;
     bool endReached = false;
     NodeID endID = NULL_ID;
 
     // explore nodes until queue is empty or end is found
     while (head < tail)
     {
-        NodeID current = queue[++head];
+        NodeID current = queue[head++];
         Node* restrict node = &nodes[current];
 
         score += node->value;
-
-        // if this node is an end node
-        if (ends[current] != END_NONE)
-        {
-            endReached = true;
-            endID = current;
-            break;
-        }
 
         NodeID* restrict edges = node->edges;
         NodeCount numEdges = node->numEdges;
 
         // loop over edges
-        for (NodeCount e = 0; e < numEdges; ++e)
+        for (NodeCount e = 0; e < numEdges; e++)
         {
             NodeID next = edges[e];
 
             if (visited[next] == state) continue; // already visited
             if (nodes[next].type == NODE_UNWALKABLE) continue; // cannot pass through
 
+            // check if next is an end node
+            if (endMask[next] != END_NONE) // IF START/END ARE THE SAME NODE, THIS WONT GET IT
+            {
+                if (stopEarly)
+                {
+                    visited[next] = state;
+                    queue[tail++] = next;
+                    paths[next] = current;
+
+                    endReached = true;
+                    endID = next; // the end tile itself, so the path includes it
+                    goto stop;
+                }
+                
+                if (excludeEnds) continue;
+
+                visited[next] = state;
+                paths[next] = current;
+                continue;
+            }
+
             visited[next] = state;
-            queue[++tail] = next;
+            queue[tail++] = next;
             paths[next] = current;
         }
     }
+
+    stop:
+
+    bfsData->head = head;
+    bfsData->tail = tail;
 
     bfsResult->endReached = endReached;
 
     if (endReached)
     {
         bfsResult->endID = endID;
-        recoverBFSPath(paths, endID, bfsResult->path, &bfsResult->pathLength);
+        recoverBFSPath(paths, endID, bfsData->numNodes, bfsResult->path, &bfsResult->pathLength);
     }
     else
     {
@@ -195,17 +216,16 @@ static BFSState getNextBFSState(BFSData* bfsData)
 
 
 
-static void recoverBFSPath(NodeID* restrict paths, NodeID endID, NodeID* restrict path, NodeCount* restrict pathLength)
+static void recoverBFSPath(NodeID* restrict paths, NodeID endID, NodeCount numNodes, NodeID* restrict path, NodeCount* restrict pathLength)
 {
-    NodeCount length = 0;
     NodeID current = endID;
+    NodeCount count = numNodes;
 
     while (current != NULL_ID)
     {
-        path[length] = current;
-        ++length;
+        path[--count] = current;
         current = paths[current];
     }
 
-    *pathLength = length;
+    *pathLength = numNodes - count - 1;
 }

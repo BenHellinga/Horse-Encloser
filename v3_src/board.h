@@ -21,16 +21,18 @@ enum
     TILE_BEE,
     TILE_CHERRY,
     TILE_APPLE,
+
     TILE_BLUE_PORTAL,
     TILE_PINK_PORTAL,
+    TILE_DARK_BLUE_PORTAL,
     TILE_PURPLE_PORTAL,
-    TILE_MAGENTA_PORTAL,
     TILE_RED_PORTAL,
+    TILE_ORANGE_PORTAL,
 
     NUM_TILE_TYPES
 };
 
-#define NUM_PORTAL_PAIRS 5
+#define NUM_PORTAL_PAIRS 6
 #define TILE_IS_PORTAL(tile) ((tile) - TILE_BLUE_PORTAL >= 0 && (tile) - TILE_BLUE_PORTAL < NUM_PORTAL_PAIRS)
 #define PORTAL_PAIR(tile) ((tile) - TILE_BLUE_PORTAL)
 
@@ -43,21 +45,22 @@ typedef struct
 }
 TileInfo;
 
-#define DEFINED_TILE_INFO                                          \
-{                          /*   c  value   walkable   placeable */ \
-    [TILE_EMPTY]          = { ' ',     1,      true,       true }, \
-    [TILE_UNICORN]        = { 'U',     1,      true,      false }, \
-    [TILE_HORSE]          = { 'H',     1,      true,      false }, \
-    [TILE_WALL]           = { 'W',     0,     false,      false }, \
-    [TILE_WATER]          = { '~',     0,     false,      false }, \
-    [TILE_BEE]            = { 'B',    -4,      true,      false }, \
-    [TILE_CHERRY]         = { 'C',     4,      true,      false }, \
-    [TILE_APPLE]          = { 'A',    11,      true,      false }, \
-    [TILE_BLUE_PORTAL]    = { '1',     1,      true,      false }, \
-    [TILE_PINK_PORTAL]    = { '2',     1,      true,      false }, \
-    [TILE_PURPLE_PORTAL]  = { '3',     1,      true,      false }, \
-    [TILE_MAGENTA_PORTAL] = { '4',     1,      true,      false }, \
-    [TILE_RED_PORTAL]     = { '5',     1,      true,      false }, \
+#define DEFINED_TILE_INFO                                            \
+{                            /*   c  value   walkable   placeable */ \
+    [TILE_EMPTY]            = { ' ',     1,      true,       true }, \
+    [TILE_UNICORN]          = { 'U',     1,      true,      false }, \
+    [TILE_HORSE]            = { 'H',     1,      true,      false }, \
+    [TILE_WALL]             = { '#',     0,     false,      false }, \
+    [TILE_WATER]            = { '~',     0,     false,      false }, \
+    [TILE_BEE]              = { 'B',    -4,      true,      false }, \
+    [TILE_CHERRY]           = { 'C',     4,      true,      false }, \
+    [TILE_APPLE]            = { 'A',    11,      true,      false }, \
+    [TILE_BLUE_PORTAL]      = { '1',     1,      true,      false }, \
+    [TILE_PINK_PORTAL]      = { '2',     1,      true,      false }, \
+    [TILE_DARK_BLUE_PORTAL] = { '3',     1,      true,      false }, \
+    [TILE_PURPLE_PORTAL]    = { '4',     1,      true,      false }, \
+    [TILE_RED_PORTAL]       = { '5',     1,      true,      false }, \
+    [TILE_ORANGE_PORTAL]    = { '6',     1,      true,      false }, \
 }
 extern const TileInfo TILE_INFO[NUM_TILE_TYPES];
 

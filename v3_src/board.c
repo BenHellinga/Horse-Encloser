@@ -27,7 +27,7 @@ const GamemodeInfo GAMEMODE_INFO[] = DEFINED_GAMEMODE_INFO;
 
 
 
-static int parseBoardVersion1(FILE* file, Board** board);
+static int parseBoardVersion1And2(FILE* file, Board** board);
 
 static int readVersionNumber(FILE* file, int* version);
 static int readGamemode(FILE* file, Board* board);
@@ -70,12 +70,12 @@ int boardFromFile(char* filepath, Board** board)
 
     switch (version)
     {
-        case 1:
-            ret = parseBoardVersion1(file, board);
+        case 1: case 2:
+            ret = parseBoardVersion1And2(file, board);
             break;
 
         default:
-            printf("Error: Unsupported version number\n");
+            printf("Error: Unsupported version number '%d'\n", version);
             ret = -1;
             break;
     }
@@ -111,7 +111,7 @@ void freeBoard(Board* board)
 
 
 // parses a version 1 board file (already past the version line) into a Board
-static int parseBoardVersion1(FILE* file, Board** board)
+static int parseBoardVersion1And2(FILE* file, Board** board)
 {
     int ret;
 

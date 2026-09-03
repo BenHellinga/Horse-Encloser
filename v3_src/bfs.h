@@ -25,6 +25,8 @@ typedef struct
     BFSState* visited;
     NodeID* queue;
     NodeID* paths;
+    NodeCount head;
+    NodeCount tail;
 }
 BFSData;
 
@@ -34,8 +36,10 @@ typedef struct
 {
     Graph* graph;
     NodeCount numStarts;
-    NodeID* starts;
-    EndType* ends;
+    NodeID* startList;
+    EndType* endMask;
+    bool stopEarly;
+    bool includeEnds;
 }
 BFSArgs;
 
@@ -44,7 +48,7 @@ BFSArgs;
 typedef struct
 {
     bool endReached;
-    int16_t score;
+    ScoreValue score;
     NodeID endID;
     NodeCount pathLength;
     NodeID* path;

@@ -10,7 +10,8 @@
 
 
 /*
-    TODO
+    Same algorithm as v2 however focuses on graph optimization. This time, Board is read from the file, then later converted to a Graph and optimized.
+    Single tile hallways are marked unplaceable, and consecutive tiles are merged together as either walls cannot be placed to separate them. This reduces the work of BFS over many iterations.
 */
 
 
@@ -36,11 +37,24 @@ int main(int argc, char** argv)
 
     printf("Board Parsed\n\n");
     printBoard(board);
-    printf("\nStarting Solve\n");
+    printf("\nStarting Solve\n\n");
 
     Result* result = solve(board);
 
-    printf("Cleaning Up\n");
+    printf("\n");
+
+    if (result->solutionFound)
+    {
+        // place walls on the board for a final visual, board is freed right after so no need to undo
+        for (uint8_t i = 0; i < result->numWalls; ++i)
+            board->tiles[result->walls[i]] = TILE_WALL;
+
+        printBoard(board);
+        printf("\nscore: %d, walls used: %u\n", result->score, result->numWalls);
+    }
+    else printf("no solution found\n");
+
+    printf("\nCleaning Up\n");
 
     freeBoard(board);
     freeResult(result);

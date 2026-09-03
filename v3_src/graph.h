@@ -59,12 +59,12 @@ typedef struct
 {
     NodeCount numNodes;
     Node* nodes;
-    NodeID horse;
-    NodeID unicorn;
     NodeCount numOptional;
     NodeID* optionalEnds;
     NodeCount numRequired;
     NodeID* requiredEnds;
+    NodeID horse;
+    NodeID unicorn;
 }
 Graph;
 
