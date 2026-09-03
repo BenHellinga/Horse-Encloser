@@ -11,6 +11,14 @@
 
 
 
+/*
+    Most of this file was written by AI. v3 focused on graph improvements, while the solving algorithm would remain the same to see the difference in performance.
+    Therefore, instead of rewritting/adapting the v2 solving algorithm to the new data structures, I got AI to do for me.
+    A new solving algorithm is planned in v4.
+*/
+
+
+
 // typedefs
 
 
