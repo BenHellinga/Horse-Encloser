@@ -48,7 +48,7 @@ BFSArgs;
 typedef struct
 {
     bool endReached;
-    ScoreValue score;
+    Score score;
     NodeID endID;
     NodeCount pathLength;
     NodeID* path;

@@ -72,7 +72,7 @@ static void buildEndMask(void);
 
 static void recurse(void);
 static void recurse_r(uint8_t depth);
-static void recordIfBest(ScoreValue score, uint8_t numWalls);
+static void recordIfBest(Score score, uint8_t numWalls);
 static void removeCheckedTilesFromPath(BFSResult* result);
 
 static void validateClassic(BFSResult* result);
@@ -294,7 +294,7 @@ static void recurse_r(uint8_t depth)
 
 
 
-static void recordIfBest(ScoreValue score, uint8_t numWalls)
+static void recordIfBest(Score score, uint8_t numWalls)
 {
     Result* best = solverData.best;
 
@@ -402,7 +402,7 @@ static void validateQuarrel(BFSResult* result)
         return;
     }
 
-    ScoreValue horseScore = result->score;
+    Score horseScore = result->score;
 
     // check if unicorn is enclosed
     solverData.endMask[graph->unicorn] = END_NONE;

@@ -339,7 +339,7 @@ static char nodePrintingInfoToValueChar(NodePrintingInfo* info)
     Node* node = info->node;
     if (node->id == NULL_ID) return NULL_ID_CHAR;
 
-    ScoreValue value = node->value;
+    Score value = node->value;
 
     if (value == -4) return 'b';
     if (value == 11) return 'a';

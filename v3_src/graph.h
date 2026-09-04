@@ -13,7 +13,7 @@
 
 typedef uint16_t NodeID;
 typedef uint16_t NodeCount;
-typedef int16_t ScoreValue;
+typedef int16_t Score;
 
 
 
@@ -44,7 +44,7 @@ enum
 typedef struct
 {
     NodeID id;
-    ScoreValue value;
+    Score value;
     NodeType type;
     NodeCount numEdges;
     NodeID* edges;

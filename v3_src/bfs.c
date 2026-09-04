@@ -129,7 +129,7 @@ void BFS(BFSData* restrict bfsData, BFSArgs* restrict bfsArgs, BFSResult* restri
         paths[start] = NULL_ID;
     }
 
-    ScoreValue score = 0;
+    Score score = 0;
     bool endReached = false;
     NodeID endID = NULL_ID;
 

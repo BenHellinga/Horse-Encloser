@@ -121,7 +121,7 @@ static void getBaseGraphNodes(Graph* restrict graph, Board* restrict board)
     {
         TileType tile = tiles[n];
 
-        ScoreValue value = TILE_INFO[tile].value;
+        Score value = TILE_INFO[tile].value;
 
         bool firstOrLastRow = n / width == 0 || n / width == height - 1;
         bool firstOrLastColumn = n % width == 0 || n % width == width - 1;
@@ -487,7 +487,7 @@ static void mergeNodesIntoGroup(Graph* graph, GraphPrintingInfo* info, NodeCount
 {
     Node* newNode = removeNodesAndGetMergedGroup(graph, numIDs, nodeIDs);
     NodeID newNodeID = newNode->id;
-    ScoreValue newValue = newNode->value;
+    Score newValue = newNode->value;
     NodeCount newNumEdges = newNode->numEdges;
     NodeID* newEdges = newNode->edges;
 
@@ -550,7 +550,7 @@ static Node* removeNodesAndGetMergedGroup(Graph* graph, NodeCount numIDs, NodeID
     Node* newNode = &nodes[newNodeID];
     NodeCount newNumEdges = 0;
     NodeID* newEdges = (NodeID*)calloc(numIDs * 3 + 2, sizeof(NodeID));
-    ScoreValue newValue = 0;
+    Score newValue = 0;
 
     // label all merged nodes as null
     for (NodeCount n = 0; n < numIDs; n++)

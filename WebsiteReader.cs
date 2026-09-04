@@ -10,7 +10,8 @@ namespace HorseEncloser;
 
 public enum Tile
 {
-    Empty, Horse, Unicorn, Wall, Water, Bee, Cherry, Apple, BluePortal, PinkPortal, PurplePortal
+    Empty, Horse, Unicorn, Wall, Water, Bee, Cherry, Apple,
+    BluePortal, PinkPortal, DarkBluePortal, PurplePortal, RedPortal, OrangePortal
 }
 
 
@@ -59,18 +60,23 @@ public static class WebsiteReader
 
     private static readonly IReadOnlyDictionary<Tile, char> TileChars = new Dictionary<Tile, char>
     {
-        { Tile.Empty,        ' ' },
-        { Tile.Horse,        'H' },
-        { Tile.Unicorn,      'U' },
-        { Tile.Wall,         '#' },
-        { Tile.Water,        '~' },
-        { Tile.Bee,          'B' },
-        { Tile.Cherry,       'C' },
-        { Tile.Apple,        'A' },
-        { Tile.BluePortal,   '1' },
-        { Tile.PinkPortal,   '2' },
-        { Tile.PurplePortal, '3' },
+        { Tile.Empty,          ' ' },
+        { Tile.Horse,          'H' },
+        { Tile.Unicorn,        'U' },
+        { Tile.Wall,           '#' },
+        { Tile.Water,          '~' },
+        { Tile.Bee,            'B' },
+        { Tile.Cherry,         'C' },
+        { Tile.Apple,          'A' },
+        { Tile.BluePortal,     '1' },
+        { Tile.PinkPortal,     '2' },
+        { Tile.DarkBluePortal, '3' },
+        { Tile.PurplePortal,   '4' },
+        { Tile.RedPortal,      '5' },
+        { Tile.OrangePortal,   '6' },
     };
+
+    private const string FILE_VERSION = "2";
 
 
 
@@ -590,7 +596,7 @@ public static class WebsiteReader
 
         List<string> lines =
         [
-            "1",
+            $"{FILE_VERSION}",
             gamemode.ToString().ToLowerInvariant(),
             $"{numWalls}",
             $"{width}, {height}",
