@@ -6,4 +6,6 @@ publish-win/
 v[0-9]*_src/v[0-9]*
 !v[0-9]*_src/*.c
 !v[0-9]*_src/*.h
+
+*.d
 *.o
