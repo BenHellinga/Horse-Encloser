@@ -53,6 +53,8 @@ Result* solve(Board* board)
     Graph* graph = graphFromBoard(board);
     printGraphInfo(graph, GRAPH_PRINT_ALL);
 
+    printf("%d -> %d\n", board->numTiles, graph->numNodes);
+
     printf("\nBoard Converted\n");
 
     // iterative deepening to get a sense of progress

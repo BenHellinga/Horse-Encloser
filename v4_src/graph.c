@@ -52,20 +52,19 @@ Graph* graphFromBoard(Board* board)
 
     BFSContext* bfsContext = initBFSContext(graph->numNodes);
 
-    bool changed = true;
-    while (changed)
+    while (true)
     {
-        changed = false;
+        if (removeUnreachableNodes(graph, bfsContext)) continue;
+        if (mergeConsecutiveOccupiedNodes(graph, bfsContext)) continue;
+        if (markUnsensibleNodesOccupied(graph)) continue;
+        if (pushForwardRequiredEnds(graph)) continue;
+        if (disconnectConsecutiveRequired(graph)) continue;
+        if (mergeSimilarOccupiedNodes(graph)) continue;
+        if (mergeDeadEnds(graph, bfsContext)) continue;
 
-        changed |= removeUnreachableNodes(graph, bfsContext);
-        changed |= mergeConsecutiveOccupiedNodes(graph, bfsContext);
-        changed |= markUnsensibleNodesOccupied(graph);
-        changed |= pushForwardRequiredEnds(graph);
-        changed |= disconnectConsecutiveRequired(graph);
-        changed |= mergeSimilarOccupiedNodes(graph);
-        changed |= mergeDeadEnds(graph, bfsContext);
+        break;
     }
-
+    
     defragGraph(graph);
     freeBFSContext();
     return graph;
@@ -576,7 +575,7 @@ static bool mergeDeadEnds(Graph* graph, BFSContext* bfs)
         if (node->flags & FLAG_INSIDE) continue;
 
         // node is non-null and has not been part of any previous search
-
+        
         // get shortest path from node to horse/unicorn
         singleBFS(id);
 
@@ -598,7 +597,8 @@ static bool mergeDeadEnds(Graph* graph, BFSContext* bfs)
             // if there is another shorest path, this is not a deadend
             if (bfs->data.endReached)
             {
-                nodes[current].flags ^= FLAG_OUTSIDE | FLAG_INSIDE;
+                nodes[current].flags &= ~FLAG_OUTSIDE;
+                nodes[current].flags |= FLAG_INSIDE;
                 current = next;
                 next = path[current];
                 continue;
@@ -677,7 +677,8 @@ static bool mergeDeadEnds(Graph* graph, BFSContext* bfs)
             }
 
             // remove current blocker and set to inside
-            nodes[current].flags ^= FLAG_OUTSIDE | FLAG_INSIDE;
+            nodes[current].flags &= ~FLAG_OUTSIDE;
+            nodes[current].flags |= FLAG_INSIDE;
             current = next;
             next = path[current];
         }
@@ -1131,6 +1132,10 @@ static void defragGraph(Graph* graph)
     // fix horse/unicorn
     if (graph->horse != NULL_ID)   graph->horse   = nodeRemap[graph->horse];
     if (graph->unicorn != NULL_ID) graph->unicorn = nodeRemap[graph->unicorn];
+
+    // reset boundary flags
+    for (NodeCount n = 0; n < liveNodes; n++)
+        newNodes[n].flags &= ~(FLAG_INSIDE | FLAG_OUTSIDE);
 
     // swap in new buffers
     free(graph->nodes);

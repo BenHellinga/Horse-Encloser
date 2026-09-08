@@ -8,7 +8,7 @@
 
 
 /*
-    TODO
+    Changed the data structures a bit from v3, added more graph optimizations, and implemented a new solver that maintains the boundary between inside and outside.
 */
 
 
